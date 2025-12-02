@@ -1,57 +1,45 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. Configuración visual (Título e icono de fuerza)
+# 1. Configuración de la página
 st.set_page_config(page_title="Coach IA", page_icon="💪")
 st.title("Mi Entrenador Personal 💪")
-st.caption("Rutinas, nutrición y consejos de entrenamiento.")
+st.caption("Pídeme rutinas, dietas o consejos.")
 
-# 2. Conexión segura
+# 2. Conexión a Google
 try:
     api_key = st.secrets["GOOGLE_API_KEY"]
     genai.configure(api_key=api_key)
 except:
-    st.error("⚠️ Falta la API Key. Configúrala en los 'Secrets' de Streamlit.")
+    st.error("⚠️ No encontré la API Key. Revisa los 'Secrets'.")
 
-# 3. Instrucciones del Entrenador (Aquí definimos su personalidad)
-instrucciones = """
-Eres un entrenador personal experto, motivador y directo.
-Tu trabajo es crear rutinas de ejercicio, explicar técnica y dar consejos de nutrición.
-Si te piden una rutina, pregunta siempre qué equipo tienen disponible.
-Usa formato de listas y emojis para que sea fácil de leer en el celular.
-"""
-
-# Usamos el modelo 'gemini-1.5-flash' que es el más rápido y estable actualmente
-model = genai.GenerativeModel(
-    'gemini-1.5-flash',
-    system_instruction=instrucciones
-)
+# 3. Configuración del Modelo (USAMOS EL ESTÁNDAR COMPATIBLE)
+# Usamos 'gemini-pro' que funciona en todas las cuentas
+model = genai.GenerativeModel('gemini-pro')
 
 # 4. Chat y Memoria
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Mostrar historial
+# Mostrar historial visual
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 5. Lógica de respuesta
-if prompt := st.chat_input("Ej: Rutina de pecho en casa..."):
-    # Guardar lo que escribiste
+# 5. Lógica del Chat
+if prompt := st.chat_input("Ej: Rutina de pecho para hoy..."):
+    # Mostrar mensaje del usuario
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    try:
-        # Generar respuesta
-        with st.chat_message("assistant"):
-            chat = model.start_chat(history=[])
-            # Enviamos el contexto de la conversación
-            response = model.generate_content(prompt)
+    # Generar respuesta
+    with st.chat_message("assistant"):
+        try:
+            # Truco: Le decimos que es entrenador junto con tu pregunta
+            prompt_entrenador = f"Actúa como un entrenador personal experto y responde esto: {prompt}"
+            
+            response = model.generate_content(prompt_entrenador)
             st.markdown(response.text)
-        
-        # Guardar respuesta
-        st.session_state.messages.append({"role": "assistant", "content": response.text})
-    
-    except Exception as e:
-        st.error(f"Error de conexión: {e}")
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+        except Exception as e:
+            st.error(f"Error: {e}")
