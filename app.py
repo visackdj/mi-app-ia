@@ -13,7 +13,7 @@ except:
     st.error("Falta la API Key en los secretos.")
 
 # 3. Interfaz del Chat
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-pro')
 
 # Historial simple (se borra al recargar la página)
 if "messages" not in st.session_state:
