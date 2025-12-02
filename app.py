@@ -15,7 +15,7 @@ except:
 
 # 3. Configuración del Modelo (USAMOS EL ESTÁNDAR COMPATIBLE)
 # Usamos 'gemini-pro' que funciona en todas las cuentas
-model = genai.GenerativeModel('gemini-pro')
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 4. Chat y Memoria
 if "messages" not in st.session_state:
