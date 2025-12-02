@@ -1,32 +1,65 @@
 import streamlit as st
 import google.generativeai as genai
 
-st.title("🕵️‍♂️ Diagnóstico de Llave")
+# --- CONFIGURACIÓN DE PÁGINA ---
+st.set_page_config(page_title="Coach IA", page_icon="💪")
+st.title("Mi Entrenador Personal 💪")
+st.caption("Rutinas, nutrición y consejos de entrenamiento.")
 
+# --- CONEXIÓN Y SELECTOR AUTOMÁTICO DE MODELO ---
 try:
-    # 1. Obtenemos la clave
     api_key = st.secrets["GOOGLE_API_KEY"]
-    st.write(f"✅ Clave detectada (Termina en: ...{api_key[-5:]})")
     genai.configure(api_key=api_key)
     
-    # 2. Preguntamos a Google qué modelos ve esta clave
-    st.write("### 📋 Lista de Modelos Disponibles:")
+    # 1. Buscamos qué modelos tienes disponibles
+    modelos_disponibles = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
     
-    modelos = list(genai.list_models())
-    encontrado = False
-    
-    if not modelos:
-        st.error("❌ Tu clave funciona, pero NO ve ningún modelo. ¡Necesitas una clave nueva!")
+    # 2. Intentamos elegir el mejor en orden de preferencia
+    nombre_modelo = ""
+    if "models/gemini-1.5-flash" in modelos_disponibles:
+        nombre_modelo = "models/gemini-1.5-flash"
+    elif "models/gemini-pro" in modelos_disponibles:
+        nombre_modelo = "models/gemini-pro"
     else:
-        for m in modelos:
-            st.code(m.name) # Muestra el nombre técnico
-            if "gemini-1.5-flash" in m.name:
-                encontrado = True
+        # Si no están los habituales, tomamos el primero que funcione
+        nombre_modelo = modelos_disponibles[0]
         
-        if encontrado:
-            st.success("✅ ¡Tu clave SÍ ve el modelo 'gemini-1.5-flash'! El error anterior era raro.")
-        else:
-            st.warning("⚠️ Tu clave funciona, pero NO tiene permiso para usar Flash o Pro. Necesitas crear una clave en un proyecto nuevo.")
+    # st.success(f"Conectado usando: {nombre_modelo}") # Descomenta para ver cuál eligió
+    
+    # 3. Creamos el Entrenador con el modelo encontrado
+    instrucciones = "Eres un entrenador personal experto. Responde breve, motivador y usa listas."
+    model = genai.GenerativeModel(nombre_modelo, system_instruction=instrucciones)
 
 except Exception as e:
-    st.error(f"Error grave de conexión: {e}")
+    st.error(f"Error de conexión: {e}")
+    st.stop()
+
+# --- CHAT Y MEMORIA ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Mostrar historial
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# --- LÓGICA DE RESPUESTA ---
+if prompt := st.chat_input("Ej: Rutina de pierna en casa..."):
+    st.chat_message("user").markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
+
+    try:
+        with st.chat_message("assistant"):
+            # Enviamos el historial completo para que recuerde la conversación
+            chat_history = [{"role": m["role"], "parts": [m["content"]]} for m in st.session_state.messages if m["role"] != "system"]
+            
+            # Generar respuesta (usando invoke o chat según librería, aquí simplificado)
+            chat = model.start_chat(history=[])
+            response = chat.send_message(prompt)
+            
+            st.markdown(response.text)
+        
+        st.session_state.messages.append({"role": "assistant", "content": response.text})
+    
+    except Exception as e:
+        st.error(f"Ocurrió un error: {e}")
